@@ -23,32 +23,21 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.select import Select
 import pickle
 
-driver = webdriver.Chrome('./chromedriver')
-url = 'https://ipindiaservices.gov.in/PublicSearch/PublicationSearch'
-
-driver.get(url)
-current_html = driver.page_source
-fromdate = driver.find_element_by_id('FromDate')
-fromdate.send_keys('01/01/2010')
-todate = driver.find_element_by_id('ToDate')
-todate.send_keys('12/31/2019')
-
-# applicants = [
-#   'Toyota Motor*',
-#   'Toyota jidosha*',
-#   'Toyota jidousha*',
-#   'Nissan Motor*',
-#   'Mitsubishi jidosha*',
-#   'Mazda',
-#   'Subaru',
-#   'Daihatsu Motor*',
-#   'Honda Motor*',
-#   'Suzuki Motor*',
-#   'Yamaha Motor*',
-#   'Kawasaki Heavy Industries*'
-# ]
+idx = int(input())
 
 applicants = [
+  'Toyota Motor*',
+  'Toyota jidosha*',
+  'Toyota jidousha*',
+  'Nissan Motor*',
+  'Mitsubishi jidosha*',
+  'Mazda',
+  'Subaru',
+  'Daihatsu Motor*',
+  'Honda Motor*',
+  'Suzuki Motor*',
+  'Yamaha Motor*',
+  'Kawasaki Heavy Industries*'
   'Isuzu Motors*',
   'Hino Motors*',
   'Mitsubishi Fuso Truck and Bus*',
@@ -62,17 +51,24 @@ applicants = [
   'Ford Motor*',
   'Fiat Chrysler Automobiles*',
   'Bayerische Motoren Werke*'
-]
+ ]
 
-for i in range(len(applicants)):
-  item_select_element = driver.find_element_by_id('ItemField'+str(i+1))
-  item_selector = Select(item_select_element)
-  item_selector.select_by_value('PA')
-  logic_element = driver.find_element_by_id('LogicField'+str(i+1))
-  logic_selector = Select(logic_element)
-  logic_selector.select_by_value('OR')
-  item = driver.find_element_by_id('TextField'+str(i+1))
-  item.send_keys(applicants[i])
+print('get data: ' + applicants[idx])
+
+driver = webdriver.Chrome('./chromedriver')
+url = 'https://ipindiaservices.gov.in/PublicSearch/PublicationSearch'
+driver.get(url)
+current_html = driver.page_source
+fromdate = driver.find_element_by_id('FromDate')
+fromdate.send_keys('01/01/2010')
+todate = driver.find_element_by_id('ToDate')
+todate.send_keys('12/31/2019')
+
+item_select_element = driver.find_element_by_id('ItemField1')
+item_selector = Select(item_select_element)
+item_selector.select_by_value('PA')
+item = driver.find_element_by_id('TextField1')
+item.send_keys(applicants[idx])
 
 result = []
 
@@ -85,6 +81,9 @@ def get_detail_data(driver):
         if tds:
           current_data[tds[0].text] = tds[1].text
 
+    status = driver.find_elements_by_xpath('//*[@id="Content"]/div[2]/table/tbody/tr[2]/td[2]/h3/strong')
+    if status:
+      current_data['APPLICATION STATUS'] = status[0].text
     # ViewDocument Button
     view_b = driver.find_elements_by_xpath('//*[@id="Content"]/div[2]/form/table/tbody/tr/td[4]/input')
     
@@ -112,7 +111,6 @@ def get_detail_data(driver):
 
     result.append(current_data)
 
-cnt = 0
 while True:
   
   try:
@@ -149,19 +147,17 @@ while True:
           with open('inpass.log', mode='a') as f:
             f.write(n +'\n')
 
-
       driver.switch_to.window(handle_array[0])
 
   
   next_b = driver.find_element_by_xpath('//*[@id="tableData"]/tfoot/tr/td/table/tbody/tr/th[2]/button[3]')
-  if next_b:
+  if next_b.is_enabled():
     next_b.click()
+  else:
+    break
 
-with open('inpass2.binaryfile', 'wb') as pc:
+with open('inpass_'+str(idx) +'.binaryfile','wb') as pc:
   pickle.dump(result , pc)
-
-
-
 
 
 # def get_page_links(url):
