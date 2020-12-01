@@ -1,4 +1,5 @@
-chromedriver.exe
+chromedriver*
 debug.log
 *.binaryfile
 *.csv
+.python-version
