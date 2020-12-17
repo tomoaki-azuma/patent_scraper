@@ -35,7 +35,7 @@ applicants = [
   'Honda Motor*',
   'Suzuki Motor*',
   'Yamaha Motor*',
-  'Kawasaki Heavy Industries*'
+  'Kawasaki Heavy Industries*',
   'Isuzu Motors*',
   'Hino Motors*',
   'Mitsubishi Fuso Truck and Bus*',

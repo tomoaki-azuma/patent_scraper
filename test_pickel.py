@@ -22,8 +22,8 @@ title = [
 ]
 
 result = []
-
-with open('inpass_4.binaryfile', 'rb') as pk:
+n = input()
+with open('inpass_' + str(n) + '.binaryfile', 'rb') as pk:
     data = pickle.load(pk)
     for d in data:
         temp = []
@@ -35,7 +35,8 @@ with open('inpass_4.binaryfile', 'rb') as pk:
         result.append(temp)
 
 
-with open('out.csv', 'w', encoding='shift-jis', newline='') as f:
+#with open('out_' + str(n) + '.csv', 'w', encoding='shift-jis', newline='') as f:
+with open('out_' + str(n) + '.csv', 'w', encoding='utf-8', newline='') as f:
     dataWriter = csv.writer(f)
     dataWriter.writerow(title)
     dataWriter.writerows(result)
