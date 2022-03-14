@@ -3,3 +3,4 @@ debug.log
 *.binaryfile
 *.csv
 .python-version
+*.log
