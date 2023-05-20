@@ -3,3 +3,4 @@ inpass.log
 chromedriver.exe
 debug.log
 chromedriver
+*.csv
