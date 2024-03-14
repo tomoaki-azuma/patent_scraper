@@ -22,7 +22,7 @@ all_results = []
 
 conn = sqlite3.connect('inpass.db')
 c = conn.cursor()
-c.execute('select app_num, reg_num, patentee, patentee_address from inpass_result order by reg_num')
+c.execute('select app_num, reg_num, patentee_sl, patentee, patentee_address from inpass_result order by reg_num')
 inpass_results = c.fetchall()
 
 for result in inpass_results:
@@ -36,9 +36,18 @@ for result in inpass_results:
   for remark in remarks:
     result_list.append(remark[0])
   
+  for i in range(4-len(remarks)):
+    result_list.append("  ")
+  
+  c.execute('select * from renewal where reg_num = ?', (reg_num,))
+  renewal = c.fetchall()
+  if (len(renewal) > 0):
+    renewal_data = renewal[0]
+    result_list += [renewal_data[2], renewal_data[10], renewal_data[11]]
+
   all_results.append(result_list)
 
-with open('scraping_results.csv', 'w', newline='') as f:
+with open('scraping_results.tsv', 'w', newline='') as f:
   writer = csv.writer(f, delimiter='\t')
   writer.writerows(all_results)
 

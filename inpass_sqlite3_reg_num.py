@@ -8,6 +8,7 @@ import requests
 import csv
 import sys
 import sqlite3
+from inpass_sqlite3_applicants import get_detail_data
 from time import sleep
 from bs4 import BeautifulSoup
 from selenium import webdriver
@@ -22,66 +23,17 @@ from selenium.webdriver.chrome import service as fs
 import pickle
 from selenium.webdriver.chrome.options import Options # オプションを使うために必要
 
-
-def get_detail_data(driver, app_num, cursor):
-    patentee_data = []
-    remark_data = []
-    try:
-
-      reg_num = driver.find_element(By.XPATH, '//*[@id="Content"]/div[2]/div/table[2]/tbody/tr[1]/td[3]').text
-      print(reg_num)
-
-      data_trs = driver.find_elements(By.XPATH, '//*[@id="Content"]/div[2]/div/table[4]/tbody/tr')
-      for i, tr in enumerate(data_trs):
-        if i == 0:
-          ths = tr.find_elements(By.XPATH, 'th')
-          if ths[1].text != 'Name of Patentee':
-            break
-          else:
-            continue
-
-        tds = tr.find_elements(By.XPATH, 'td')
-
-        patentee_name = tds[1].text
-        patentee_address = tds[3].text
-
-        up_data = (app_num, reg_num, patentee_name, patentee_address)
-        patentee_data.append(up_data)
-    
-      remark_trs = driver.find_elements(By.XPATH, '//*[@id="Content"]/div[2]/div/table[7]/tbody/tr')
-
-      for i, tr in enumerate(remark_trs):
-        if i == 0:
-          ths = tr.find_elements(By.XPATH, 'th')
-          if ths[0].text != 'Sl No':
-            break
-          else:
-            continue
-
-        tds = tr.find_elements(By.XPATH, 'td')
-        serial = tds[0].text
-        date_of_entry = tds[1].text
-        remarks = tds[2].text
-
-        up_data = (app_num, reg_num, serial, date_of_entry, remarks)
-        remark_data.append(up_data)
-
-      return [patentee_data, remark_data]
-    except Exception as e:
-      print(e)
-      print('cannot get detail info of :' + app_num)
-      return []
-
-
 if __name__ == '__main__':
 
   conn = sqlite3.connect('inpass.db')
   c = conn.cursor()
-  c.execute('select reg_num from inpass_application where is_checked = 0 limit 14')
+  c.execute('select reg_num from inpass_application where is_checked = 0')
   regnums = list(map(lambda m: m[0], c.fetchall()))
 
   if len(regnums) == 0:
     sys.exit()
+
+  regnums = regnums[0:14]
   
   # ドライバー指定でChromeブラウザを開く
   chrome_service = fs.Service(executable_path="./chromedriver")
@@ -90,7 +42,7 @@ if __name__ == '__main__':
   options.use_chromium = True
   options.add_argument('--incognito')
   driver = webdriver.Chrome(service=chrome_service, options=options)
-  url = 'https://ipindiaservices.gov.in/PublicSearch/PublicationSearch'
+  url = 'https://iprsearch.ipindia.gov.in/publicsearch'
   driver.get(url)
   current_html = driver.page_source
   pub_type = driver.find_element(By.ID, 'Granted')
@@ -133,11 +85,6 @@ if __name__ == '__main__':
     for t in tabledata:
       # 取得済みかチェック
       app_num = t.find_element(By.XPATH, 'td[1]').text
-      # print("reg_num--------", reg_num)
-      # c.execute('select count(*) from inpass_application where reg_num = ? and is_checked = ?', (reg_num, 0))
-      # result = c.fetchone()
-      # if result[0] == 0:
-      #    continue
       
       try:
         print(app_num)
@@ -157,12 +104,15 @@ if __name__ == '__main__':
         detail_data = get_detail_data(driver, app_num, c)
 
         patentee_results = detail_data[0]
-
-        conn.executemany('insert into inpass_result(app_num, reg_num, patentee, patentee_address) values(?,?,?,?)', patentee_results)
+        conn.executemany('insert into inpass_result(app_num, reg_num, patentee_sl, patentee, patentee_address) values(?,?,?,?,?)', patentee_results)
         conn.commit()
         
         remark_results = detail_data[1]
         conn.executemany('insert into remarks(app_num, reg_num, sequence, date_of_entry, remark) values(?,?,?,?,?)',  remark_results)
+        conn.commit()
+
+        renewal_resluts = detail_data[2]
+        conn.execute('insert into renewal(app_num, reg_num, year, normal_due_date, due_date_with_extension, cbr_no, cbr_date, renewal_amount, renewal_certificate_no, date_of_renewal, renewal_period_from, renewal_period_to) values(?,?,?,?,?,?,?,?,?,?,?,?)',  renewal_resluts)
         conn.commit()
 
         conn.execute('update inpass_application set is_checked = 1 where reg_num = ?' , (patentee_results[0][1],))

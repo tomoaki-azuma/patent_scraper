@@ -26,8 +26,9 @@ from selenium.webdriver.chrome.options import Options # オプションを使う
 def get_detail_data(driver, app_num, cursor):
     patentee_data = []
     remark_data = []
+    renewal_data = []
     try:
-
+      reg_num = ""
       reg_num = driver.find_element(By.XPATH, '//*[@id="Content"]/div[2]/div/table[2]/tbody/tr[1]/td[3]').text
       print(reg_num)
 
@@ -42,10 +43,11 @@ def get_detail_data(driver, app_num, cursor):
 
         tds = tr.find_elements(By.XPATH, 'td')
 
+        patentee_sl = tds[0].text
         patentee_name = tds[1].text
         patentee_address = tds[3].text
 
-        up_data = (app_num, reg_num, patentee_name, patentee_address)
+        up_data = (app_num, reg_num, patentee_sl, patentee_name, patentee_address)
         patentee_data.append(up_data)
     
       remark_trs = driver.find_elements(By.XPATH, '//*[@id="Content"]/div[2]/div/table[7]/tbody/tr')
@@ -66,7 +68,21 @@ def get_detail_data(driver, app_num, cursor):
         up_data = (app_num, reg_num, serial, date_of_entry, remarks)
         remark_data.append(up_data)
 
-      return [patentee_data, remark_data]
+      renewal_trs = driver.find_elements(By.XPATH, '//*[@id="renual"]/tbody/tr')
+      for i, tr in enumerate(renewal_trs):
+        tds = tr.find_elements(By.XPATH, 'td')
+
+        if i < 2:
+          continue
+        if i == 2:
+          renewal_data = (list(map( lambda x: x.text, tds)))
+        else:
+          if tds[1].text != "--":
+            renewal_data = (list(map( lambda x: x.text, tds)))
+      
+      renewal_data = [app_num, reg_num] + renewal_data
+
+      return [patentee_data, remark_data, renewal_data]
     except Exception as e:
       print(e)
       print('cannot get detail info of :' + app_num)
@@ -90,15 +106,14 @@ if __name__ == '__main__':
   options.use_chromium = True
   options.add_argument('--incognito')
   driver = webdriver.Chrome(service=chrome_service, options=options)
-  url = 'https://ipindiaservices.gov.in/PublicSearch/PublicationSearch'
+  url = 'https://iprsearch.ipindia.gov.in/publicsearch'
   driver.get(url)
+
   current_html = driver.page_source
   pub_type = driver.find_element(By.ID, 'Granted')
   pub_type.click()
 
   for i in range(0,len(applicants)):
-    print(i)
-    print(applicants[i])
     item_select_element = driver.find_element(By.ID, 'ItemField' + str(i+1))
     item_selector = Select(item_select_element)
     item_selector.select_by_value('PA')
@@ -115,6 +130,8 @@ if __name__ == '__main__':
   search_btn.click()
 
   result = []
+  current = 0
+  PER_PAGE = 25
   
   while True:
     try:
@@ -127,7 +144,7 @@ if __name__ == '__main__':
     tabledata = driver.find_elements(By.XPATH, '//*[@id="tableData"]/tbody/tr')
 
     total_count = driver.find_element(By.XPATH, '//*[@id="header"]/div[4]/div/div[1]/div[2]').text
-    print('------- '+ total_count + ' -------------')
+    print('------- '+ str(current*PER_PAGE+1) + '-' + str(current*PER_PAGE+len(tabledata)) + '/' + total_count + ' -------------')
 
     up_datas = []
     for t in tabledata:
@@ -141,10 +158,9 @@ if __name__ == '__main__':
       
       try:
         print(app_num)
-        # リスト一覧から1文献の詳細データをクリック
         button = t.find_element(By.XPATH,'td[5]/button')
         button.click()
-
+   
         handle_array = driver.window_handles
         # pop up windowに切り替え
         driver.switch_to.window(handle_array[1])
@@ -155,14 +171,19 @@ if __name__ == '__main__':
         )
 
         detail_data = get_detail_data(driver, app_num, c)
+        if get_detail_data == []:
+          continue
 
         patentee_results = detail_data[0]
-
-        conn.executemany('insert into inpass_result(app_num, reg_num, patentee, patentee_address) values(?,?,?,?)', patentee_results)
+        conn.executemany('insert into inpass_result(app_num, reg_num, patentee_sl, patentee, patentee_address) values(?,?,?,?,?)', patentee_results)
         conn.commit()
         
         remark_results = detail_data[1]
         conn.executemany('insert into remarks(app_num, reg_num, sequence, date_of_entry, remark) values(?,?,?,?,?)',  remark_results)
+        conn.commit()
+
+        renewal_resluts = detail_data[2]
+        conn.execute('insert into renewal(app_num, reg_num, year, normal_due_date, due_date_with_extension, cbr_no, cbr_date, renewal_amount, renewal_certificate_no, date_of_renewal, renewal_period_from, renewal_period_to) values(?,?,?,?,?,?,?,?,?,?,?,?)',  renewal_resluts)
         conn.commit()
 
         conn.execute('update inpass_application set is_checked = 1 where app_num = ?' , (app_num,))
@@ -175,6 +196,7 @@ if __name__ == '__main__':
         driver.close()
         driver.switch_to.window(handle_array[0])
 
+    current += 1
     next_b = driver.find_element(By.XPATH, '//*[@id="tableData"]/tfoot/tr/td/table/tbody/tr/th[2]/button[3]')
     if next_b.is_enabled():
       next_b.click()

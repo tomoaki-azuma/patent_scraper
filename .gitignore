@@ -1,4 +1,4 @@
-inpass.db
+*.db
 inpass.log
 chromedriver.exe
 debug.log
