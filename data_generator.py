@@ -22,7 +22,7 @@ all_results = []
 
 conn = sqlite3.connect('inpass.db')
 c = conn.cursor()
-c.execute('select app_num, reg_num, patentee_sl, patentee, patentee_address from inpass_result order by reg_num')
+c.execute('select app_num, reg_num, patentee_sl, patentee, patentee_address, legal_status, date_of_status from inpass_result order by reg_num')
 inpass_results = c.fetchall()
 
 for result in inpass_results:

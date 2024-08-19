@@ -8,6 +8,7 @@ import requests
 import csv
 import sys
 import sqlite3
+import threading
 from time import sleep
 from bs4 import BeautifulSoup
 from selenium import webdriver
@@ -82,11 +83,27 @@ def get_detail_data(driver, app_num, cursor):
       
       renewal_data = [app_num, reg_num] + renewal_data
 
-      return [patentee_data, remark_data, renewal_data]
+      legal_status = ""
+      status_date = ""
+      print("--------show regal status -------")
+      legal_status_trs = driver.find_element(By.XPATH, '//*[@id="Content"]/div[2]/div/table[1]/tbody/tr[2]/td[1]')
+      legal_status = legal_status_trs.text.strip()
+      print(legal_status)
+
+      if legal_status != "":
+        status_date = driver.find_element(By.XPATH, '//*[@id="Content"]/div[2]/div/table[1]/tbody/tr[2]/td[2]')
+        status_date = status_date.text.strip()
+        print(status_date)
+
+      legal_status_info = (legal_status, status_date)
+
+      return [patentee_data, remark_data, renewal_data, legal_status_info]
     except Exception as e:
       print(e)
       print('cannot get detail info of :' + app_num)
       return []
+
+
 
 
 if __name__ == '__main__':
@@ -98,8 +115,8 @@ if __name__ == '__main__':
 
   if len(applicants) == 0:
     sys.exit()
-
-  # ドライバー指定でChromeブラウザを開く
+  
+# ドライバー指定でChromeブラウザを開く
   chrome_service = fs.Service(executable_path="./chromedriver")
   options = webdriver.ChromeOptions()
   options.add_experimental_option('excludeSwitches', ['enable-logging'])
@@ -154,13 +171,13 @@ if __name__ == '__main__':
       c.execute('select count(*) from inpass_application where app_num = ? and is_checked = ?', (app_num, 0))
       result = c.fetchone()
       if result[0] == 0:
-         continue
+        continue
       
       try:
         print(app_num)
         button = t.find_element(By.XPATH,'td[5]/button')
         button.click()
-   
+  
         handle_array = driver.window_handles
         # pop up windowに切り替え
         driver.switch_to.window(handle_array[1])
@@ -189,6 +206,10 @@ if __name__ == '__main__':
         conn.execute('update inpass_application set is_checked = 1 where app_num = ?' , (app_num,))
         conn.commit()
 
+        legal_status_info = detail_data[3]
+        conn.execute('update inpass_result set legal_status = ?, date_of_status = ? where app_num = ?' , (legal_status_info[0],legal_status_info[1], app_num))
+        conn.commit()
+
       except Exception as e:
         print(e)
         print('error occured：' + app_num) 
@@ -206,7 +227,7 @@ if __name__ == '__main__':
         conn.execute('update source_applicants set is_checked = 1 where company_name = ' + applicant)
         conn.commit()
 
-      conn.close()
       driver.close()
       break
 
+  conn.close()

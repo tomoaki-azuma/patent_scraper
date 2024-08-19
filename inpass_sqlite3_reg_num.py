@@ -115,8 +115,13 @@ if __name__ == '__main__':
         conn.execute('insert into renewal(app_num, reg_num, year, normal_due_date, due_date_with_extension, cbr_no, cbr_date, renewal_amount, renewal_certificate_no, date_of_renewal, renewal_period_from, renewal_period_to) values(?,?,?,?,?,?,?,?,?,?,?,?)',  renewal_resluts)
         conn.commit()
 
+        legal_status_info = detail_data[3]
+        conn.execute('update inpass_result set legal_status = ?, date_of_status = ? where app_num = ?' , (legal_status_info[0],legal_status_info[1], app_num))
+        conn.commit()
+
         conn.execute('update inpass_application set is_checked = 1 where reg_num = ?' , (patentee_results[0][1],))
         conn.commit()
+
         regnums.remove(patentee_results[0][1])
 
       except Exception as e:
